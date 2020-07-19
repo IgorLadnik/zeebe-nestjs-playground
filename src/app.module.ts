@@ -23,10 +23,8 @@ import { AppService } from './app.service';
 export class AppModule {
   constructor(@Inject(ZEEBE_CONNECTION_PROVIDER) private readonly zbClient: ZBClient) {
     this.zbClient.deployWorkflow('./bpmn/order-process.bpmn').then(res => {
-      // tslint:disable: no-console
       console.log('Workflow deployed:');
       console.log(res);
-      console.log('\nNow open http://localhost:3000 to start a workflow.');
     });
   }
 }

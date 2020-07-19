@@ -27,7 +27,7 @@ export class AppController {
       sessionId,
       tracer: 'init',
     });
-    // tslint:disable-next-line: no-console
+
     console.log(`getHello() ${JSON.stringify(wfi)}`);
 
     // res.status(HttpStatus.OK).send(`getHello() ${JSON.stringify(wfi)}`);
@@ -39,7 +39,6 @@ export class AppController {
   // Subscribe to events of type 'inventory-service and create a worker with the options as passed below (zeebe-node ZBWorkerOptions)
   @ZeebeWorker('inventory-service', { maxJobsToActivate: 10, timeout: 300 })
   inventoryService(job, complete) {
-    // tslint:disable-next-line: no-console
     console.log('Inventory-service -> Task variables', job.variables);
 
     // Task worker business logic
@@ -57,7 +56,6 @@ export class AppController {
   // Subscribe to events of type 'payment-service
   @ZeebeWorker('payment-service')
   paymentService(job, complete) {
-    // tslint:disable-next-line: no-console
     console.log('Payment-service -> Task variables', job.variables);
 
     // Task worker business logic
@@ -71,7 +69,10 @@ export class AppController {
 
     complete.success(variableUpdate);
 
-    this.responses.get(job.variables.sessionId).status(HttpStatus.OK).send(`paymentService() =>  ${JSON.stringify(payload)}`);
-    this.responses.delete(job.variables.sessionId);
+    const response = this.responses.get(job.variables.sessionId);
+    if (response) {
+      response.status(HttpStatus.OK).send(`Workflow result -> ${JSON.stringify(payload)}`);
+      this.responses.delete(job.variables.sessionId);
+    }
   }
 }
