@@ -5,8 +5,13 @@ import { Controller, Inject, Get, Post, Req, Res, Body, HttpStatus, UsePipes, Us
 import { ZBClient } from 'zeebe-node';
 import { CreateWorkflowInstanceResponse } from 'zeebe-node/interfaces';
 import { ZEEBE_CONNECTION_PROVIDER, ZeebeWorker, ZeebeServer } from '@payk/nestjs-zeebe';
-import { AppService } from './../services/app.service';
-// import { tsIndexSignature } from '@babel/types';
+import { AppService } from '../services/app.service';
+import { RabbitmqPublisherService } from '../services/rabbitmq-publisher.service';
+import { RabbitmqConsumerService } from '../services/rabbitmq-consumer.service';
+
+class Message {
+  constructor(public id: number, public text: string) { }
+}
 
 @Controller()
 export class AppController {
@@ -16,7 +21,16 @@ export class AppController {
     @Inject(ZEEBE_CONNECTION_PROVIDER) private readonly zbClient: ZBClient,
     private readonly zeebeServer: ZeebeServer,
     private readonly appService: AppService,
-  ) {}
+    private readonly rabbitmqPublisherService: RabbitmqPublisherService,
+    private readonly rabbitmqConsumerService: RabbitmqConsumerService
+  ) {
+    this.rabbitmqConsumerService.createAndStartChunksProcessing(events => {
+      console.log(`*** events: ${JSON.stringify(events)}`);
+    })
+      .then(() => console.log('Consumer created and started chunks processing'));
+    this.rabbitmqPublisherService.create()
+      .then(() => console.log('Publisher created'));
+  }
 
   sendResultToClient(sessionId: string, payload: any) {
     const response = this.responses.get(sessionId);
@@ -38,6 +52,8 @@ export class AppController {
     console.log(`getHello() ${JSON.stringify(wfi)}`);
 
     // res.status(HttpStatus.OK).send(`getHello() ${JSON.stringify(wfi)}`);
+
+    this.rabbitmqPublisherService.publish(new Message(1, 'aa'));
 
     this.responses.set(sessionId, res);
     return wfi;

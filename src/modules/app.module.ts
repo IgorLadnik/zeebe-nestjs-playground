@@ -9,6 +9,8 @@ import {
 import { ZBClient } from 'zeebe-node';
 
 import { AppService } from './../services/app.service';
+import { RabbitmqPublisherService } from '../services/rabbitmq-publisher.service';
+import { RabbitmqConsumerService } from '../services/rabbitmq-consumer.service';
 
 @Module({
   imports: [
@@ -18,7 +20,7 @@ import { AppService } from './../services/app.service';
     }),
   ],
   controllers: [AppController],
-  providers: [ZeebeServer, AppService],
+  providers: [ZeebeServer, AppService, RabbitmqPublisherService, RabbitmqConsumerService],
 })
 export class AppModule {
   constructor(@Inject(ZEEBE_CONNECTION_PROVIDER) private readonly zbClient: ZBClient) {
