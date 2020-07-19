@@ -1,6 +1,6 @@
 /* tslint:disable:radix */
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { AppModule } from './modules/app.module';
 import { ZeebeServer } from '@payk/nestjs-zeebe';
 
 function getPort(): number {

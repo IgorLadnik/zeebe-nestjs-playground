@@ -1,12 +1,11 @@
 // app.controller.ts
-import _ from 'lodash';
 import { Guid } from 'guid-typescript';
 import { Request, Response } from 'express';
 import { Controller, Inject, Get, Post, Req, Res, Body, HttpStatus, UsePipes, UseInterceptors } from '@nestjs/common';
-import { AppService } from './app.service';
 import { ZBClient } from 'zeebe-node';
 import { CreateWorkflowInstanceResponse } from 'zeebe-node/interfaces';
 import { ZEEBE_CONNECTION_PROVIDER, ZeebeWorker, ZeebeServer } from '@payk/nestjs-zeebe';
+import { AppService } from './../services/app.service';
 // import { tsIndexSignature } from '@babel/types';
 
 @Controller()

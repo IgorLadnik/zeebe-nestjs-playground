@@ -1,6 +1,6 @@
 // app.module.ts
 import { Module, Inject } from '@nestjs/common';
-import { AppController } from './app.controller';
+import { AppController } from './../controllers/app.controller';
 import {
   ZeebeModule,
   ZeebeServer,
@@ -8,7 +8,7 @@ import {
 } from '@payk/nestjs-zeebe';
 import { ZBClient } from 'zeebe-node';
 
-import { AppService } from './app.service';
+import { AppService } from './../services/app.service';
 
 @Module({
   imports: [
