@@ -19,6 +19,14 @@ export class AppController {
     private readonly appService: AppService,
   ) {}
 
+  sendResultToClient(sessionId: string, payload: any) {
+    const response = this.responses.get(sessionId);
+    if (response) {
+      response.status(HttpStatus.OK).send(`Workflow result -> ${JSON.stringify(payload)}`);
+      this.responses.delete(sessionId);
+    }
+  }
+
   // Use the client to create a new workflow instance
   @Get()
   async getHello(@Req() req: Request, @Res() res: Response): Promise<CreateWorkflowInstanceResponse> {
@@ -36,43 +44,77 @@ export class AppController {
     return wfi;
   }
 
-  // Subscribe to events of type 'inventory-service and create a worker with the options as passed below (zeebe-node ZBWorkerOptions)
-  @ZeebeWorker('inventory-service', { maxJobsToActivate: 10, timeout: 300 })
-  inventoryService(job, complete) {
-    console.log('Inventory-service -> Task variables', job.variables);
+  // Subscribe to events of type 'task-1' and
+  //   create a worker with the options as passed below (zeebe-node ZBWorkerOptions)
+  @ZeebeWorker('task-1', { maxJobsToActivate: 10, timeout: 300 })
+  task1(job, complete) {
+    console.log('task-1 -> Task variables', job.variables);
 
     // Task worker business logic
-    const payload = 'A';
+    const payload = '1';
 
     const variableUpdate = {
-      tracer: 'inventory',
-      resultInventory: 'success',
+      tracer: 'task-1',
+      result: 'success',
       payload,
     };
 
     complete.success(variableUpdate);
   }
 
-  // Subscribe to events of type 'payment-service
-  @ZeebeWorker('payment-service')
-  paymentService(job, complete) {
-    console.log('Payment-service -> Task variables', job.variables);
+  // Subscribe to events of type 'task-2'
+  @ZeebeWorker('task-2')
+  task2(job, complete) {
+    console.log('task-2 -> Task variables', job.variables);
 
     // Task worker business logic
-    const payload = job.variables.payload + 'B... ' + job.variables.sessionId;
+    const payload = job.variables.payload + '2';
 
     const variableUpdate = {
-      tracer: 'payment',
-      resultPayment: 'success',
+      tracer: 'task-2',
+      result: 'success',
+      payload,
+      nextTask: 3,
+    };
+
+    complete.success(variableUpdate);
+  }
+
+  // Subscribe to events of type 'task-3'
+  @ZeebeWorker('task-3')
+  task3(job, complete) {
+    console.log('task-3 -> Task variables', job.variables);
+
+    // Task worker business logic
+    const payload = job.variables.payload + '.3... ' + job.variables.sessionId;
+
+    const variableUpdate = {
+      tracer: 'task-3',
+      result: 'success',
       payload,
     };
 
     complete.success(variableUpdate);
 
-    const response = this.responses.get(job.variables.sessionId);
-    if (response) {
-      response.status(HttpStatus.OK).send(`Workflow result -> ${JSON.stringify(payload)}`);
-      this.responses.delete(job.variables.sessionId);
-    }
+    this.sendResultToClient(job.variables.sessionId, payload);
+  }
+
+  // Subscribe to events of type 'task-4'
+  @ZeebeWorker('task-4')
+  task4(job, complete) {
+    console.log('task-4 -> Task variables', job.variables);
+
+    // Task worker business logic
+    const payload = job.variables.payload + '.4... ' + job.variables.sessionId;
+
+    const variableUpdate = {
+      tracer: 'task-4',
+      result: 'success',
+      payload,
+    };
+
+    complete.success(variableUpdate);
+
+    this.sendResultToClient(job.variables.sessionId, payload);
   }
 }
