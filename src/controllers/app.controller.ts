@@ -5,9 +5,12 @@ import { Controller, Inject, Get, Post, Req, Res, Body, HttpStatus, UsePipes, Us
 import { ZBClient } from 'zeebe-node';
 import { CreateWorkflowInstanceResponse } from 'zeebe-node/interfaces';
 import { ZEEBE_CONNECTION_PROVIDER, ZeebeWorker, ZeebeServer } from '@payk/nestjs-zeebe';
+import { Consumer } from 'rabbitmq-provider/consumer';
 import { AppService } from '../services/app.service';
 import { RabbitmqPublisherService } from '../services/rabbitmq-publisher.service';
+import { RabbitmqExchDirectPublisherService } from '../services/rabbitmq-exch-direct-publisher.service';
 import { RabbitmqConsumerService } from '../services/rabbitmq-consumer.service';
+import { RabbitmqChunkConsumerService } from '../services/rabbitmq-chunk-consumer.service';
 
 class Message {
   constructor(public id: number, public text: string) { }
@@ -21,28 +24,48 @@ export class AppController {
     @Inject(ZEEBE_CONNECTION_PROVIDER) private readonly zbClient: ZBClient,
     private readonly zeebeServer: ZeebeServer,
     private readonly appService: AppService,
-    private readonly rabbitmqPublisherService: RabbitmqPublisherService,
-    private readonly rabbitmqConsumerService: RabbitmqConsumerService
+    private readonly rabbitmqPublisherService: RabbitmqPublisherService, // publisher to submit result to gateway
+    private readonly rabbitmqExchDirectPublisherService: RabbitmqExchDirectPublisherService, // exchange direct publisher
+    private readonly rabbitmqConsumerService: RabbitmqConsumerService, // gateway consumer
+    private readonly rabbitmqChunkConsumerService: RabbitmqChunkConsumerService, // chunks exchange direct consumer
   ) {
-    this.rabbitmqConsumerService.createAndStartChunksProcessing(events => {
+    // Gateway consumer
+    this.rabbitmqConsumerService.createAndStartProcessing((_, messages) => {
+      const payloads = Consumer.getPayloads(messages);
+      console.log(`@@@ send back events: ${JSON.stringify(messages)}`);
+      payloads.forEach(item => this.sendResultToClient(item.sessionId, item.result));
+    })
+      .then(() => console.log('Gateway consumer created and started processing'));
+
+    // Chunks exchange direct consumer
+    this.rabbitmqChunkConsumerService.createAndStartChunksProcessing(events => {
       console.log(`*** events: ${JSON.stringify(events)}`);
     })
-      .then(() => console.log('Consumer created and started chunks processing'));
+      .then(() => console.log('Exchange direst consumer created and started chunks processing'));
+
+    // Publisher to submit result to gateway
     this.rabbitmqPublisherService.create()
-      .then(() => console.log('Publisher created'));
+      .then(() => console.log('Gateway publisher created'));
+
+    // Exchange direct publisher
+    this.rabbitmqExchDirectPublisherService.create()
+      .then(() => console.log('Exchange direst publisher created'));
   }
 
-  sendResultToClient(sessionId: string, payload: any) {
+  sendResultToClient(sessionId: string, result: any) {
     const response = this.responses.get(sessionId);
     if (response) {
-      response.status(HttpStatus.OK).send(`Workflow result -> ${JSON.stringify(payload)}`);
+      response.status(HttpStatus.OK).send(`Workflow result -> ${JSON.stringify(result)}`);
       this.responses.delete(sessionId);
     }
   }
 
+  sendResultToGateway = (sessionId: string, result: any) =>
+    this.rabbitmqPublisherService.publish({ sessionId, result })
+
   // Use the client to create a new workflow instance
   @Get()
-  async getHello(@Req() req: Request, @Res() res: Response): Promise<CreateWorkflowInstanceResponse> {
+  async start(@Req() req: Request, @Res() res: Response): Promise<CreateWorkflowInstanceResponse> {
     const sessionId = `${Guid.create()}`;
     const wfi = await this.zbClient.createWorkflowInstance('order-process', {
       sessionId,
@@ -53,7 +76,7 @@ export class AppController {
 
     // res.status(HttpStatus.OK).send(`getHello() ${JSON.stringify(wfi)}`);
 
-    this.rabbitmqPublisherService.publish(new Message(1, 'aa'));
+    this.rabbitmqExchDirectPublisherService.publish(new Message(1, 'aa'));
 
     this.responses.set(sessionId, res);
     return wfi;
@@ -66,12 +89,12 @@ export class AppController {
     console.log('task-1 -> Task variables', job.variables);
 
     // Task worker business logic
-    const payload = '1';
+    const result = '1';
 
     const variableUpdate = {
       tracer: 'task-1',
-      result: 'success',
-      payload,
+      status: 'ok',
+      result,
     };
 
     complete.success(variableUpdate);
@@ -83,12 +106,12 @@ export class AppController {
     console.log('task-2 -> Task variables', job.variables);
 
     // Task worker business logic
-    const payload = job.variables.payload + '2';
+    const result = job.variables.result + '2';
 
     const variableUpdate = {
       tracer: 'task-2',
-      result: 'success',
-      payload,
+      status: 'ok',
+      result,
       nextTask: 3,
     };
 
@@ -101,17 +124,17 @@ export class AppController {
     console.log('task-3 -> Task variables', job.variables);
 
     // Task worker business logic
-    const payload = job.variables.payload + '.3... ' + job.variables.sessionId;
+    const result = job.variables.result + '.3... ' + job.variables.sessionId;
 
     const variableUpdate = {
       tracer: 'task-3',
-      result: 'success',
-      payload,
+      status: 'ok',
+      result,
     };
 
     complete.success(variableUpdate);
 
-    this.sendResultToClient(job.variables.sessionId, payload);
+    this.sendResultToGateway(job.variables.sessionId, result);
   }
 
   // Subscribe to events of type 'task-4'
@@ -120,16 +143,16 @@ export class AppController {
     console.log('task-4 -> Task variables', job.variables);
 
     // Task worker business logic
-    const payload = job.variables.payload + '.4... ' + job.variables.sessionId;
+    const result = job.variables.result + '.4... ' + job.variables.sessionId;
 
     const variableUpdate = {
       tracer: 'task-4',
-      result: 'success',
-      payload,
+      status: 'ok',
+      result,
     };
 
     complete.success(variableUpdate);
 
-    this.sendResultToClient(job.variables.sessionId, payload);
+    this.sendResultToGateway(job.variables.sessionId, result);
   }
 }
