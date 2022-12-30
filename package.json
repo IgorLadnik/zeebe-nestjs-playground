@@ -25,7 +25,7 @@
     "@payk/nestjs-zeebe": "^1.1.2",
     "grpc": "^1.24.3",
     "guid-typescript": "^1.0.9",
-    "mocha": "^8.0.1",
+    "mocha": "^8.4.0",
     "rabbitmq-provider": "git+https://github.com/IgorLadnik/rabbitmq-provider.git",
     "reflect-metadata": "^0.1.12",
     "rimraf": "^2.6.2",
